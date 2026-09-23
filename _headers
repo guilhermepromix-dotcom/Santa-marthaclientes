@@ -1,0 +1,11 @@
+/*
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+/icone.png
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+/manifest.webmanifest
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+
+/santa-martha-icon-v2.png
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate

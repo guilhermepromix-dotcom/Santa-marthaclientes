@@ -1,0 +1,92 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#151515"><title>Santa Martha Clientes</title><meta name="sm-app-version" content="2026-09-23-boi-1"><link rel="manifest" href="/manifest.webmanifest?v=2026-09-23-boi-1"><link rel="icon" type="image/png" href="/santa-martha-icon-v2.png?v=2026-09-23-boi-1"><link rel="apple-touch-icon" sizes="512x512" href="/santa-martha-icon-v2.png?v=2026-09-23-boi-1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Santa Martha"><meta name="apple-mobile-web-app-status-bar-style" content="black"><style>:root{font-family:system-ui,-apple-system,sans-serif;color:#f7f2e6;background:#111}*{box-sizing:border-box}body{margin:0;max-width:680px;margin-inline:auto;padding:22px 16px 80px}header{display:flex;gap:12px;align-items:center;margin-bottom:24px}.logo{width:55px;height:55px;border:2px solid #d7af52;border-radius:16px;display:grid;place-items:center;color:#d7af52;font-weight:800;font-size:21px}h1{font-size:23px;margin:0;color:#eac66d}small,.muted{color:#aaa}section{border:1px solid #4c412b;border-radius:17px;padding:17px;margin:16px 0;background:#1c1c1c}h2{font-size:17px;margin:0 0 16px}label{display:block;font-size:13px;color:#eac66d;margin:12px 0 5px}input,textarea{width:100%;background:#101010;color:white;border:1px solid #5d543e;border-radius:10px;padding:13px;font:inherit}textarea{min-height:72px;resize:vertical}button,.action{border:0;border-radius:10px;padding:12px 15px;background:#d7af52;color:#151515;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}button.secondary,.action.secondary{background:#353535;color:#f3d68b}button.danger{background:#842e2e;color:white}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.item{padding:15px 0;border-top:1px solid #39332a}.name{font-weight:750;font-size:17px}.address{white-space:pre-wrap;color:#c7c7c7;margin-top:6px;font-size:14px}.empty{color:#aaa;padding:15px 0}#message{min-height:20px;color:#eac66d;font-size:14px}footer{font-size:12px;color:#aaa;line-height:1.5;margin-top:20px}[hidden]{display:none!important}</style></head><body><header><div class="logo">SM</div><div><h1>Santa Martha Clientes</h1><small>Casa de Carnes Santa Martha</small></div></header><section id="config"><h2>Conectar banco de dados</h2><p class="muted">Abra pelo link HTTPS publicado no Netlify, não pela pré-visualização do arquivo no iPhone. Preencha uma vez neste navegador. Use somente a chave pública (anon/publishable); nunca a service_role ou secret.</p><label>URL do projeto Supabase</label><input id="url" placeholder="https://seu-projeto.supabase.co"><label>Chave pública (anon / publishable)</label><input id="key" type="password"><div class="buttons"><button type="button" id="connect">Conectar</button></div></section><section id="auth" hidden><h2>Entrar ou solicitar acesso</h2><label>Email individual</label><input id="email" type="email" autocomplete="username"><label>Senha individual</label><input id="password" type="password" autocomplete="current-password"><div class="buttons"><button id="login">Entrar</button><button id="signup" class="secondary">Solicitar cadastro</button></div><p class="muted">Novas contas ficam bloqueadas até o proprietário autorizar com a senha mestre. Se a confirmação de email estiver ativa, confirme seu email antes de entrar.</p></section><section id="pending" hidden><h2>Aguardando autorização</h2><p>Seu cadastro foi recebido, mas ainda não tem acesso aos clientes. Peça ao proprietário que autorize seu email.</p><button id="pendingRefresh">Verificar novamente</button></section><section id="account" hidden><p id="who"></p><button id="logout" class="secondary">Sair</button></section><section id="owner" hidden><h2>Administração do proprietário</h2><p class="muted">A senha mestre é exigida para excluir clientes e autorizar funcionários. A edição de clientes pede apenas confirmação.</p><div id="masterSetup"><label>Crie sua senha mestre (mínimo 10 caracteres)</label><input id="newMaster" type="password" autocomplete="new-password"><button id="setMaster">Criar senha mestre</button></div><h2 style="margin-top:22px">Autorizar funcionários</h2><div id="pendingUsers"></div></section><main id="app" hidden><section><h2 id="formTitle">Cadastrar cliente</h2><p class="muted">Para alterar um cadastro, basta confirmar. Para excluir, é necessária a senha mestre.</p><form id="form"><input type="hidden" id="id"><label>Nome *</label><input id="name" required maxlength="120"><label>Telefone / WhatsApp *</label><input id="phone" type="tel" required maxlength="25"><label>Endereço de entrega *</label><textarea id="address" required maxlength="500"></textarea><div class="buttons"><button type="submit" id="save">Salvar cliente</button><button type="button" class="secondary" id="cancel" hidden>Cancelar edição</button></div></form></section><section><h2>Buscar clientes <span id="count" class="muted"></span></h2><input id="search" type="search" placeholder="Digite nome ou telefone"><div class="buttons"><button type="button" class="secondary" id="refreshClients">Atualizar lista</button></div><div id="results"></div></section></main><p id="message" role="status" aria-live="polite"></p><footer>Os clientes são armazenados no Supabase. A atualização entre aparelhos depende de internet. Não use a chave secreta do projeto neste aplicativo.</footer><script>
+let createClient=null;
+function deadline(p,ms,label){let timer;return Promise.race([p,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' demorou mais de '+Math.round(ms/1000)+' segundos. Verifique a internet e tente novamente.')),ms)})]).finally(()=>clearTimeout(timer))}
+async function loadSupabase(){
+ if(createClient)return createClient;
+ let last;
+ for(const url of ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm','https://esm.sh/@supabase/supabase-js@2']){
+  try{const lib=await deadline(import(url),10000,'Carregamento da biblioteca');if(typeof lib.createClient==='function'){createClient=lib.createClient;return createClient}}catch(e){last=e}
+ }
+ throw Error('Não foi possível carregar a biblioteca Supabase. Abra o aplicativo pelo endereço HTTPS do Netlify no Safari, confira a internet e tente novamente. '+(last?.message||''));
+}
+const $=id=>document.getElementById(id);let db=null,session=null,role=null,clients=[],channel=null;
+const msg=(s)=>{$('message').textContent=s};const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const digits=s=>(s||'').replace(/\D/g,'');const make=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
+function show(id,on){$(id).hidden=!on}function reset(){ $('form').reset();$('id').value='';$('formTitle').textContent='Cadastrar cliente';$('save').textContent='Salvar cliente';show('cancel',false)}
+function render(){const q=norm($('search').value.trim()),d=digits(q);const filtered=clients.filter(c=>norm(c.name).includes(q)||(d&&digits(c.phone).includes(d))).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));$('count').textContent=`(${filtered.length})`;$('results').replaceChildren();if(!filtered.length){$('results').append(make('p','Nenhum cliente encontrado.','empty'));return}for(const c of filtered){const item=make('div',undefined,'item');item.append(make('div',c.name,'name'),make('div',c.phone,'muted'),make('div',c.address,'address'));const actions=make('div',undefined,'buttons');const wa=make('a','WhatsApp','action');wa.href='https://wa.me/'+(digits(c.phone).length<=11?'55':'')+digits(c.phone);wa.target='_blank';wa.rel='noopener noreferrer';const route=make('a','📍 Rota no Maps','action secondary');route.href='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(c.address.trim())+'&travelmode=driving';route.target='_blank';route.rel='noopener noreferrer';const share=make('button','Compartilhar rota','secondary');share.type='button';share.onclick=async()=>{const text='Entrega Santa Martha\nCliente: '+c.name+'\nEndereço: '+c.address+'\nRota: '+route.href;try{if(navigator.share){await navigator.share({title:'Entrega Santa Martha - '+c.name,text});return}}catch(e){if(e.name==='AbortError')return;msg('Não foi possível abrir o compartilhamento. Abrindo WhatsApp...')}window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer')};const edit=make('button','Editar','secondary');edit.onclick=()=>{ $('id').value=c.id;$('name').value=c.name;$('phone').value=c.phone;$('address').value=c.address;$('formTitle').textContent='Editar cliente';$('save').textContent='Salvar alterações';show('cancel',true);window.scrollTo({top:0,behavior:'smooth'})};actions.append(wa,route,share,edit);if(role==='owner'){const del=make('button','Excluir','danger');del.onclick=async()=>{const p=prompt('Digite sua senha mestre para excluir este cliente:');if(p===null)return;if(!confirm(`Excluir ${c.name}? Esta ação não pode ser desfeita.`))return;const {error}=await db.rpc('sm_delete_client',{p_client_id:c.id,p_password:p});if(error){msg('Exclusão não realizada: '+error.message);return}msg('Cliente excluído.');await loadClients()};actions.append(del)}item.append(actions);$('results').append(item)}}
+async function loadClients(){const {data,error}=await db.from('sm_clients').select('id,name,phone,address').order('name');if(error){msg('Erro ao buscar clientes: '+error.message);return}clients=data||[];render()}
+async function loadOwner(){const {data,error}=await db.from('sm_profiles').select('id,email,role').eq('role','pending').order('created_at');if(error){msg('Erro ao buscar solicitações: '+error.message);return}const box=$('pendingUsers');box.replaceChildren();if(!data.length){box.append(make('p','Nenhuma solicitação pendente.','muted'));return}for(const u of data){const row=make('div',undefined,'item');row.append(make('div',u.email||u.id,'name'));const b=make('button','Autorizar com senha mestre');b.onclick=async()=>{const p=prompt('Sua senha mestre para autorizar este funcionário:');if(p===null)return;const {error}=await db.rpc('sm_approve_user',{p_user_id:u.id,p_password:p});if(error){msg('Não autorizado: '+error.message);return}msg('Funcionário autorizado.');await loadOwner()};row.append(b);box.append(row)}}
+async function refresh(){if(!db)return;const {data:{session:s}}=await db.auth.getSession();session=s;role=null;show('auth',!s);show('account',!!s);show('pending',false);show('app',false);show('owner',false);if(channel){await db.removeChannel(channel);channel=null}if(!s)return;$('who').textContent='Conectado: '+(s.user.email||'');const {data,error}=await db.from('sm_profiles').select('role').eq('id',s.user.id).single();if(error){msg('Não foi possível verificar seu acesso: '+error.message);return}role=data.role;show('pending',role==='pending');show('app',role==='owner'||role==='employee');show('owner',role==='owner');if(role==='owner')await loadOwner();if(role==='owner'||role==='employee'){await loadClients();channel=db.channel('sm-clientes-refresh').on('postgres_changes',{event:'*',schema:'public',table:'sm_clients'},()=>loadClients()).subscribe((status)=>{if(status==='SUBSCRIBED')msg('Sincronização em tempo real ativa.');if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')msg('Reconectando sincronização em tempo real...')})}}
+async function connect(url,key){
+ url=url.trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/$/,'');
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))throw Error('URL Supabase inválida. Use https://seu-projeto.supabase.co');
+ if(!key.trim())throw Error('Informe a chave pública completa (anon ou sb_publishable_...).');
+ msg('Carregando biblioteca de conexão...');
+ const factory=await loadSupabase();
+ msg('Verificando acesso ao Supabase...');
+ const response=await deadline(fetch(url+'/auth/v1/health',{headers:{apikey:key.trim()}}),12000,'Verificação da conexão');
+ if(!response.ok)throw Error('Supabase respondeu HTTP '+response.status+'. Confira a URL e a chave pública.');
+ db=factory(url,key.trim(),{auth:{detectSessionInUrl:false}});
+ db.auth.onAuthStateChange(()=>{setTimeout(()=>deadline(refresh(),15000,'Atualização do acesso').catch(e=>msg('Erro ao atualizar acesso: '+e.message)),0)});
+ show('config',false);show('auth',true);
+ // O login não deve ficar bloqueado aguardando consultas ao banco.
+ deadline(refresh(),15000,'Atualização do acesso').catch(e=>msg('Conectado, mas não foi possível atualizar o acesso: '+e.message));
+}
+$('connect').onclick=async()=>{const button=$('connect');button.disabled=true;button.textContent='Conectando...';msg('Verificando conexão com o Supabase...');try{const u=$('url').value.trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/$/,''),k=$('key').value;await deadline(connect(u,k),30000,'Conexão');localStorage.setItem('sm_public_config',JSON.stringify({u,k}));msg('Conexão configurada. Entre com seu email e senha.')}catch(e){show('config',true);msg('Falha na conexão: '+e.message)}finally{button.disabled=false;button.textContent='Conectar'}};
+$('login').onclick=async()=>{const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});msg(error?'Não foi possível entrar: '+error.message:'Login realizado.');if(!error)await refresh()};
+$('signup').onclick=async()=>{const {error}=await db.auth.signUp({email:$('email').value.trim(),password:$('password').value});msg(error?'Cadastro não realizado: '+error.message:'Solicitação enviada. Confirme seu email, se solicitado, e aguarde autorização do proprietário.');if(!error)await refresh()};
+$('logout').onclick=async()=>{await db.auth.signOut();clients=[];reset();await refresh();msg('Você saiu da conta.')};$('pendingRefresh').onclick=refresh;
+$('setMaster').onclick=async()=>{
+ const button=$('setMaster'),p=$('newMaster').value;
+ if(p.length<10){msg('A senha mestre precisa ter pelo menos 10 caracteres.');return}
+ if(!db||!session||role!=='owner'){msg('Entre com a conta do proprietário antes de criar a senha mestre.');return}
+ button.disabled=true;button.textContent='Criando...';msg('Verificando a senha mestre no banco...');
+ try{
+  const {data,error}=await deadline(db.rpc('sm_set_master',{p_password:p}),20000,'Criação da senha mestre');
+  if(error)throw error;
+  if(data===false)throw Error('O banco não confirmou a criação. Verifique a função sm_set_master no Supabase.');
+  $('newMaster').value='';show('masterSetup',false);msg('Senha mestre criada com sucesso.');
+ }catch(e){msg('Senha mestre não criada: '+(e.message||String(e))+' A senha digitada foi mantida para você tentar novamente.');}
+ finally{button.disabled=false;button.textContent='Criar senha mestre'}
+};
+$('form').onsubmit=async e=>{e.preventDefault();const c={name:$('name').value.trim(),phone:$('phone').value.trim(),address:$('address').value.trim()};if(!c.name||!c.phone||!c.address)return;const id=$('id').value;if(id&&!confirm('Deseja realmente alterar este cadastro?'))return;const {error}=id?await db.from('sm_clients').update(c).eq('id',id):await db.from('sm_clients').insert(c);if(error){msg('Não foi possível salvar: '+error.message);return}reset();msg('Cliente salvo no banco online.');await loadClients()};$('cancel').onclick=reset;$('search').oninput=render;$('refreshClients').onclick=loadClients;
+try{const c=JSON.parse(localStorage.getItem('sm_public_config')||'null');if(c){$('url').value=c.u;$('key').value=c.k;deadline(connect(c.u,c.k),30000,'Reconexão').catch(e=>{show('config',true);msg('Não foi possível reconectar: '+e.message)})}}catch(e){msg('Preencha a configuração do Supabase: '+e.message)}
+</script>
+<script>
+(function(){
+ const current=document.querySelector('meta[name="sm-app-version"]')?.content;
+ const currentCode=[...document.scripts].map(s=>s.textContent).join('\n');
+ const currentStyle=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
+ if(!current)return;
+ let checking=false;
+ async function checkUpdate(){
+  if(checking||!navigator.onLine)return;
+  checking=true;
+  try{
+   const response=await fetch('/?sm_update_check='+Date.now(),{cache:'no-store',redirect:'follow'});
+   if(!response.ok)return;
+   const html=await response.text();
+   const doc=new DOMParser().parseFromString(html,'text/html');
+   const latest=doc.querySelector('meta[name="sm-app-version"]')?.content;
+   const latestCode=[...doc.scripts].map(s=>s.textContent).join('\n');
+   const latestStyle=[...doc.querySelectorAll('style')].map(s=>s.textContent).join('\n');
+   if(!latest||(latest===current&&latestCode===currentCode&&latestStyle===currentStyle))return;
+   const form=document.getElementById('form');
+   const unsaved=form&&!form.hidden&&['name','phone','address'].some(id=>document.getElementById(id)?.value.trim());
+   if(unsaved){
+    const status=document.getElementById('message');
+    if(status)status.textContent='Nova versão disponível. Salve ou cancele o cadastro e abra o aplicativo novamente para atualizar.';
+    return;
+   }
+   location.replace('/?sm_version='+encodeURIComponent(latest)+'&sm_refresh='+Date.now());
+  }catch(e){/* Keep working offline or if the host is unavailable. */}
+  finally{checking=false}
+ }
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
+ window.addEventListener('focus',checkUpdate);
+ window.addEventListener('pageshow',checkUpdate);
+ window.addEventListener('online',checkUpdate);
+ setInterval(()=>{if(!document.hidden)checkUpdate()},5000);
+ setTimeout(checkUpdate,1000);
+})();
+</script>
+</body></html>
