@@ -1,4 +1,4 @@
-const VERSION='sm-2026-09-27-offline-sync-1';
+const VERSION='sm-2026-09-27-offline-sync-2-safequeue';
 const STATIC_CACHE=VERSION+'-static';
 const CORE=['/','/index.html','/manifest.webmanifest','/santa-martha-icon-v2.png','/icone.png','/print-logo.png'];
 self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(STATIC_CACHE).then(c=>c.addAll(CORE)).catch(()=>{}));});
